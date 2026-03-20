@@ -1,30 +1,148 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Private Room</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System_Terminal_v1</title>
     <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-</head>
-<body style="background:#111; color:#0f0; font-family:monospace;">
-    <div id="messages" style="height:300px; overflow-y:scroll; border:1px solid #333; padding:10px;"></div>
-    <input id="input" placeholder="Type a message..." style="width:80%; background:#222; color:#fff; border:1px solid #444; padding:5px;">
-    <button onclick="send()">Send</button>
-
-    <script>
-        // Connect to the decentralized network
-        var gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
-        var chat = gun.get('secret-room-name-123'); // CHANGE THIS to something unique
-
-        function send() {
-            var msg = document.getElementById('input').value;
-            chat.set({ body: msg, time: Date.now() });
-            document.getElementById('input').value = '';
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --text: #c9d1d9;
+            --accent: #238636;
+            --border: #30363d;
+            --input: #0d1117;
+        }
+        .light-mode {
+            --bg: #ffffff;
+            --panel: #f6f8fa;
+            --text: #24292f;
+            --accent: #0969da;
+            --border: #d0d7de;
+            --input: #ffffff;
         }
 
-        chat.map().once(function(data) {
-            if(data && data.body) {
-                var div = document.createElement('div');
-                div.innerText = "> " + data.body;
-                document.getElementById('messages').appendChild(div);
+        * { box-sizing: border-box; transition: 0.2s ease; }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg); color: var(--text);
+            overflow: hidden;
+        }
+
+        /* Fullscreen Layout */
+        .app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+
+        /* Login Overlay */
+        #login-screen {
+            position: fixed; inset: 0; background: var(--bg);
+            display: flex; flex-direction: column; justify-content: center; 
+            align-items: center; z-index: 1000;
+        }
+
+        header {
+            padding: 15px 25px; background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        #chat-window {
+            flex: 1; overflow-y: auto; padding: 25px;
+            display: flex; flex-direction: column; gap: 12px;
+            background-image: radial-gradient(var(--border) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .message {
+            max-width: 70%; padding: 10px 15px; border-radius: 12px;
+            background: var(--panel); border: 1px solid var(--border);
+            animation: fadeIn 0.3s ease;
+        }
+        .message b { color: var(--accent); display: block; font-size: 0.8em; margin-bottom: 4px; }
+
+        footer {
+            padding: 20px; background: var(--panel);
+            border-top: 1px solid var(--border);
+            display: flex; gap: 12px;
+        }
+
+        input {
+            flex: 1; background: var(--input); border: 1px solid var(--border);
+            color: var(--text); padding: 12px 18px; border-radius: 8px; outline: none;
+        }
+
+        button {
+            padding: 10px 25px; background: var(--accent); color: white;
+            border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+        }
+
+        .theme-toggle {
+            background: transparent; border: 1px solid var(--border); color: var(--text);
+            padding: 5px 12px; font-size: 0.8em;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <h1 style="letter-spacing: 2px;">SECURE_COMM</h1>
+        <input type="text" id="username" placeholder="Choose a handle..." style="width: 300px; text-align: center;">
+        <button onclick="joinChat()" style="margin-top: 15px; width: 300px;">INITIALIZE</button>
+    </div>
+
+    <div class="app-container">
+        <header>
+            <div style="font-weight: bold; color: var(--accent);">● ONLINE_SESSION</div>
+            <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">SWITCH THEME</button>
+        </header>
+
+        <div id="chat-window"></div>
+
+        <footer>
+            <input type="text" id="msg-input" placeholder="Type encrypted message..." onkeypress="if(event.key === 'Enter') sendMessage()">
+            <button onclick="sendMessage()">SEND</button>
+        </footer>
+    </div>
+
+    <script>
+        // Initialize Gun.js with a public relay (standard for P2P)
+        const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+        const chatRoom = gun.get('unblocked-static-chat-2026'); // Unique room ID
+        
+        let userHandle = "Anonymous";
+
+        function joinChat() {
+            const input = document.getElementById('username');
+            if (input.value.trim() !== "") {
+                userHandle = input.value.trim();
+                document.getElementById('login-screen').style.display = 'none';
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('msg-input');
+            if (input.value.trim() === "") return;
+
+            chatRoom.set({
+                alias: userHandle,
+                message: input.value,
+                time: Date.now()
+            });
+            input.value = "";
+        }
+
+        // Listen for messages
+        chatRoom.map().once(function(data) {
+            if (data && data.message) {
+                const chatWindow = document.getElementById('chat-window');
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message';
+                msgDiv.innerHTML = `<b>${data.alias}</b> ${data.message}`;
+                chatWindow.appendChild(msgDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
             }
         });
     </script>
